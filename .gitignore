@@ -1,0 +1,33 @@
+# Node.js dependencies
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+
+# Environment files
+.env
+
+# VS Code settings
+.vscode/
+
+# Build and coverage
+coverage/
+dist/
+
+# Database and generated files
+*.sqlite
+*.db
+
+# Migration artifacts
+migrations/*.log
+
+# Others
+package-lock.json
+
+# Ignore Qodo folder
+.qodo/

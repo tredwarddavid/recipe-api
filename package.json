@@ -1,0 +1,13 @@
+{
+  "name": "recipe-api",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "mysql2": "^3.15.0",
+    "restify": "^11.1.0",
+    "sequelize": "^6.37.7"
+  }
+}
