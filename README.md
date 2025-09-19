@@ -19,6 +19,7 @@
    npm install
    ```
 
+
 4. **Run Migration**
 
    This will create the necessary tables in the `dishcovery` schema:
@@ -26,7 +27,14 @@
    node migrate.js
    ```
 
-5. **Start the API Server**
+5. **Seed the Database**
+
+   To insert sample recipes, run:
+   ```bash
+   node seeders/seedRecipes.js
+   ```
+
+6. **Start the API Server**
 
    ```bash
    npm start

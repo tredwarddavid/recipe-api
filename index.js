@@ -1,6 +1,7 @@
 const restify = require('restify');
 const server = restify.createServer({ name: 'RecipeAPI' });
-server.use(restify.plugins.bodyParser());
+
+server.use(restify.plugins.queryParser());
 
 const Recipe = require('./models/Recipe');
 
@@ -113,6 +114,42 @@ server.del('/recipes/:id', async (req, res) => {
     }
     await recipe.destroy(); // This will soft delete with paranoid
     res.send(200, { message: 'Recipe soft deleted' });
+  } catch (err) {
+    res.send(500, { error: err.message });
+  }
+});
+
+
+const { Op } = require('sequelize');
+
+// Search recipes by name, description, ingredients, or tags
+const { fetchAndMapRecipe } = require('./services/mealdbService');
+server.get('/recipes/search', async (req, res) => {
+  try {
+    const { criteria, external } = req.query;
+    if (!criteria) {
+      res.send(400, { message: 'Missing search query' });
+      return;
+    }
+    let recipes = await Recipe.findAll({
+      where: {
+        [Op.or]: [
+          { name: { [Op.like]: `%${criteria}%` } },
+          { description: { [Op.like]: `%${criteria}%` } },
+          { ingredients: { [Op.like]: `%${criteria}%` } },
+          { tags: { [Op.like]: `%${criteria}%` } }
+        ]
+      }
+    });
+
+    // If query param external=true, fetch from TheMealDB and append to results
+    if (external === 'true') {
+      const externalRecipe = await fetchAndMapRecipe(criteria);
+      if (externalRecipe) {
+        recipes.push(externalRecipe);
+      }
+    }
+    res.send(recipes);
   } catch (err) {
     res.send(500, { error: err.message });
   }
