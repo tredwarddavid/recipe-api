@@ -35,13 +35,11 @@ const Recipe = sequelize.define('Recipe', {
   youtube_url: {
     type: DataTypes.STRING,
   },
-  shared: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false,
-  },
 }, {
   timestamps: true,
   tableName: 'recipe',
+  paranoid: true,
+  deletedAt: 'deleted_at',
 });
 
 module.exports = Recipe;

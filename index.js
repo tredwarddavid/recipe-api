@@ -7,7 +7,7 @@ const Recipe = require('./models/Recipe');
 // Get all recipes
 server.get('/recipes', async (req, res) => {
   try {
-    const recipes = await Recipe.findAll();
+    const recipes = await Recipe.findAll(); // paranoid true by default
     res.send(recipes);
   } catch (err) {
     res.send(500, { error: err.message });
@@ -17,7 +17,7 @@ server.get('/recipes', async (req, res) => {
 // Get a recipe by id
 server.get('/recipes/:id', async (req, res) => {
   try {
-    const recipe = await Recipe.findByPk(req.params.id);
+    const recipe = await Recipe.findByPk(req.params.id); // paranoid true by default
     if (!recipe) {
       res.send(404, { message: 'Recipe not found' });
       return;
@@ -111,8 +111,8 @@ server.del('/recipes/:id', async (req, res) => {
       res.send(404, { message: 'Recipe not found' });
       return;
     }
-    await recipe.destroy();
-    res.send(204);
+    await recipe.destroy(); // This will soft delete with paranoid
+    res.send(200, { message: 'Recipe soft deleted' });
   } catch (err) {
     res.send(500, { error: err.message });
   }
