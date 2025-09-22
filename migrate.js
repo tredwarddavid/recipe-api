@@ -1,12 +1,18 @@
 const sequelize = require('./db');
-const Recipe = require('./models/Recipe');
+
+// Import models so Sequelize knows about them
+require('./models/Recipe');
+require('./models/Ingredient');
+require('./models/Instruction');
 
 async function migrate() {
   try {
     await sequelize.authenticate();
     console.log('Connection has been established successfully.');
+
+    // Sync all models
     await sequelize.sync({ alter: true });
-    console.log('Recipe table created/updated successfully.');
+    console.log('All tables created/updated successfully.');
   } catch (error) {
     console.error('Unable to connect to the database:', error);
   } finally {

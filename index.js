@@ -2,32 +2,47 @@ const restify = require('restify');
 const server = restify.createServer({ name: 'RecipeAPI' });
 
 server.use(restify.plugins.queryParser());
+server.use(restify.plugins.bodyParser()); // needed for POST/PUT
 
-const Recipe = require('./models/Recipe');
+// Import models (with associations already set)
+const { Recipe, Ingredient, Instruction } = require('./models');
 
 // Get all recipes
 server.get('/recipes', async (req, res) => {
   try {
-    const recipes = await Recipe.findAll(); // paranoid true by default
+    const recipes = await Recipe.findAll({
+      include: [
+        { model: Ingredient, as: 'ingredients' },
+        { model: Instruction, as: 'instructions', order: [['step', 'ASC']] }
+      ],
+    });
     res.send(recipes);
   } catch (err) {
-    res.send(500, { error: err.message });
+    console.error(err);
+    res.status(500).send({ error: err.message });
   }
 });
 
 // Get a recipe by id
 server.get('/recipes/:id', async (req, res) => {
   try {
-    const recipe = await Recipe.findByPk(req.params.id); // paranoid true by default
+    const recipe = await Recipe.findByPk(req.params.id, {
+      include: [
+        { model: Ingredient, as: 'ingredients' },
+        { model: Instruction, as: 'instructions', order: [['step', 'ASC']] }
+      ],
+    });
     if (!recipe) {
       res.send(404, { message: 'Recipe not found' });
       return;
     }
     res.send(recipe);
   } catch (err) {
-    res.send(500, { error: err.message });
+    console.error(err);
+    res.status(500).send({ error: err.message });
   }
 });
+
 
 // Create a new recipe
 server.post('/recipes', async (req, res) => {

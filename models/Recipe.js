@@ -7,34 +7,13 @@ const Recipe = sequelize.define('Recipe', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  description: {
-    type: DataTypes.TEXT,
-  },
-  ingredients: {
-    type: DataTypes.TEXT,
-  },
-  instructions: {
-    type: DataTypes.TEXT,
-  },
-  category: {
-    type: DataTypes.STRING,
-  },
-  cuisine: {
-    type: DataTypes.STRING,
-  },
-  tags: {
-    type: DataTypes.STRING,
-  },
-  image_url: {
-    type: DataTypes.STRING,
-  },
-  youtube_url: {
-    type: DataTypes.STRING,
-  },
+  name: { type: DataTypes.STRING, allowNull: false },
+  description: { type: DataTypes.TEXT },
+  category: { type: DataTypes.STRING },
+  cuisine: { type: DataTypes.STRING },
+  tags: { type: DataTypes.STRING },
+  image_url: { type: DataTypes.STRING },
+  youtube_url: { type: DataTypes.STRING },
 }, {
   timestamps: true,
   tableName: 'recipe',
