@@ -1,11 +1,13 @@
 const restify = require('restify');
+const { Op } = require('sequelize');
+const { fetchAndMapRecipe, fetchAndMapRecipeByCategory, fetchAndMapRecipeByArea, fetchAndMapRecipeById } = require('./services/mealdbService');
+// Import models (with associations already set)
+const { Recipe, Ingredient, Instruction } = require('./models');
+
 const server = restify.createServer({ name: 'RecipeAPI' });
 
 server.use(restify.plugins.queryParser());
 server.use(restify.plugins.bodyParser()); // needed for POST/PUT
-
-// Import models (with associations already set)
-const { Recipe, Ingredient, Instruction } = require('./models');
 
 // Get all recipes
 server.get('/recipes', async (req, res) => {
@@ -33,7 +35,13 @@ server.get('/recipes/:id', async (req, res) => {
       ],
     });
     if (!recipe) {
-      res.send(404, { message: 'Recipe not found' });
+      // Try external API if not found locally
+      const externalRecipe = await fetchAndMapRecipeById(req.params.id);
+      if (!externalRecipe) {
+        res.send(404, { message: 'Recipe not found' });
+        return;
+      }
+      res.send(externalRecipe);
       return;
     }
     res.send(recipe);
@@ -134,11 +142,7 @@ server.del('/recipes/:id', async (req, res) => {
   }
 });
 
-
-const { Op } = require('sequelize');
-
-// Search recipes by name, description, ingredients, or tags
-const { fetchAndMapRecipe } = require('./services/mealdbService');
+// Search recipes by name, description or tags
 server.get('/recipes/search', async (req, res) => {
   try {
     const { criteria, external } = req.query;
@@ -151,17 +155,82 @@ server.get('/recipes/search', async (req, res) => {
         [Op.or]: [
           { name: { [Op.like]: `%${criteria}%` } },
           { description: { [Op.like]: `%${criteria}%` } },
-          { ingredients: { [Op.like]: `%${criteria}%` } },
           { tags: { [Op.like]: `%${criteria}%` } }
         ]
-      }
+      },
+      include: [
+        { model: Ingredient, as: 'ingredients' },
+        { model: Instruction, as: 'instructions', order: [['step', 'ASC']] }
+      ]
     });
 
     // If query param external=true, fetch from TheMealDB and append to results
     if (external === 'true') {
-      const externalRecipe = await fetchAndMapRecipe(criteria);
-      if (externalRecipe) {
-        recipes.push(externalRecipe);
+      const externalRecipes = await fetchAndMapRecipe(criteria);
+      if (externalRecipes && externalRecipes.length > 0) {
+        recipes = recipes.concat(externalRecipes);
+      }
+    }
+    res.send(recipes);
+  } catch (err) {
+    res.send(500, { error: err.message });
+  }
+});
+
+// Search recipes by category
+server.get('/recipes/searchByCategory', async (req, res) => {
+  try {
+    const { category, external } = req.query;
+    if (!category) {
+      res.send(400, { message: 'Missing category query' });
+      return;
+    }
+    let recipes = await Recipe.findAll({
+      where: {
+        category: { [Op.like]: `%${category}%` }
+      },
+      include: [
+        { model: Ingredient, as: 'ingredients' },
+        { model: Instruction, as: 'instructions', order: [['step', 'ASC']] }
+      ]
+    });
+
+    // If query param external=true, fetch from TheMealDB and append to results
+    if (external === 'true') {
+      const externalRecipes = await fetchAndMapRecipeByCategory(category);
+      if (externalRecipes && externalRecipes.length > 0) {
+        recipes = recipes.concat(externalRecipes);
+      }
+    }
+    res.send(recipes);
+  } catch (err) {
+    res.send(500, { error: err.message });
+  }
+});
+
+// Search recipes by cuisine/area
+server.get('/recipes/searchByCuisine', async (req, res) => {
+  try {
+    const { cuisine, external } = req.query;
+    if (!cuisine) {
+      res.send(400, { message: 'Missing cuisine query' });
+      return;
+    }
+    let recipes = await Recipe.findAll({
+      where: {
+        cuisine: { [Op.like]: `%${cuisine}%` }
+      },
+      include: [
+        { model: Ingredient, as: 'ingredients' },
+        { model: Instruction, as: 'instructions', order: [['step', 'ASC']] }
+      ]
+    });
+
+    // If query param external=true, fetch from TheMealDB and append to results
+    if (external === 'true') {
+      const externalRecipes = await fetchAndMapRecipeByArea(cuisine);
+      if (externalRecipes && externalRecipes.length > 0) {
+        recipes = recipes.concat(externalRecipes);
       }
     }
     res.send(recipes);
