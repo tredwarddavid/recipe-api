@@ -239,6 +239,7 @@ server.get('/recipes/searchByCuisine', async (req, res) => {
   }
 });
 
-server.listen(3000, () => {
-  console.log('%s listening at %s', server.name, server.url);
+server.listen(3000, "localhost", () => {
+  console.log("Running at http://localhost:3000");
 });
+

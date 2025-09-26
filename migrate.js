@@ -4,6 +4,7 @@ const sequelize = require('./db');
 require('./models/Recipe');
 require('./models/Ingredient');
 require('./models/Instruction');
+require('./models/Ingredients');
 
 async function migrate() {
   try {
