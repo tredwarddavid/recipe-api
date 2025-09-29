@@ -71,11 +71,10 @@ server.post('/recipes', async (req, res) => {
       res.send(400, { message: 'Missing required fields' });
       return;
     }
+    // Create Recipe first
     const recipe = await Recipe.create({
       name,
       description,
-      ingredients,
-      instructions,
       category,
       cuisine,
       tags,
@@ -83,7 +82,38 @@ server.post('/recipes', async (req, res) => {
       youtube_url,
       shared
     });
-    res.send(201, recipe);
+
+    // Create Ingredients
+    if (Array.isArray(ingredients)) {
+      for (const ing of ingredients) {
+        await Ingredient.create({
+          name: ing.name,
+          quantity: ing.quantity,
+          unit: ing.unit,
+          recipe_id: recipe.id
+        });
+      }
+    }
+
+    // Create Instructions
+    if (Array.isArray(instructions)) {
+      for (const inst of instructions) {
+        await Instruction.create({
+          step: inst.step,
+          description: inst.description,
+          recipe_id: recipe.id
+        });
+      }
+    }
+
+    // Return the full recipe with associations
+    const fullRecipe = await Recipe.findByPk(recipe.id, {
+      include: [
+        { model: Ingredient, as: 'ingredients' },
+        { model: Instruction, as: 'instructions', order: [['step', 'ASC']] }
+      ]
+    });
+    res.send(201, fullRecipe);
   } catch (err) {
     res.send(500, { error: err.message });
   }
