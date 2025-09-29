@@ -273,3 +273,30 @@ server.listen(3000, "localhost", () => {
   console.log("Running at http://localhost:3000");
 });
 
+// Image upload endpoint
+const os = require('os');
+const path = require('path');
+const fs = require('fs');
+
+server.post('/upload', async (req, res) => {
+  try {
+    if (!req.files || !req.files.image) {
+      res.send(400, { message: 'No image file uploaded' });
+      return;
+    }
+    const imageFile = req.files.image;
+    const userHome = os.homedir();
+    const uploadDir = path.join(userHome, 'dishcovery', 'recipe', 'images');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    const fileName = Date.now() + '_' + imageFile.name.replace(/\s+/g, '_');
+    const filePath = path.join(uploadDir, fileName);
+    // Save file
+    fs.writeFileSync(filePath, imageFile.data);
+    res.send({ message: 'Image uploaded successfully', path: filePath });
+  } catch (err) {
+    res.send(500, { error: err.message });
+  }
+});
+
