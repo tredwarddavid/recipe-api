@@ -1,0 +1,9 @@
+-- Migration: Create bookmarks table
+
+CREATE TABLE IF NOT EXISTS bookmarks (
+    id CHAR(36) PRIMARY KEY,
+    recipe_id CHAR(36) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_recipe FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
+);

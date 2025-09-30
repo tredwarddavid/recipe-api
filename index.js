@@ -2,7 +2,7 @@ const restify = require('restify');
 const { Op } = require('sequelize');
 const { fetchAndMapRecipe, fetchAndMapRecipeByCategory, fetchAndMapRecipeByArea, fetchAndMapRecipeById } = require('./services/mealdbService');
 // Import models (with associations already set)
-const { Recipe, Ingredient, Instruction } = require('./models');
+const { Recipe, Ingredient, Instruction, Bookmarks } = require('./models');
 
 const server = restify.createServer({ name: 'RecipeAPI' });
 
@@ -300,3 +300,79 @@ server.post('/upload', async (req, res) => {
   }
 });
 
+server.get('/bookmarks', async (req, res) => {
+  try {
+    const bookmarks = await Bookmarks.findAll({
+      include: [
+        {
+          model: Recipe,
+          as: 'recipe',
+          include: [
+            { model: Ingredient, as: 'ingredients' },
+            { model: Instruction, as: 'instructions', order: [['step', 'ASC']] }
+          ]
+        }
+      ]
+    });
+    res.send(bookmarks);
+  } catch (err) {
+    res.send(500, { error: err.message });
+  }
+});
+
+// Add a bookmark
+server.post('/bookmarks', async (req, res) => {
+  try {
+    const { recipe_id } = req.body;
+    if (!recipe_id) {
+      res.send(400, { message: 'Missing recipe_id' });
+      return;
+    }
+
+    // Ensure recipe exists
+    const recipe = await Recipe.findByPk(recipe_id);
+    if (!recipe) {
+      res.send(404, { message: 'Recipe not found' });
+      return;
+    }
+
+    const bookmark = await Bookmarks.create({ recipe_id });
+    res.send(201, bookmark);
+  } catch (err) {
+    res.send(500, { error: err.message });
+  }
+});
+
+// Delete a bookmark
+server.del('/bookmarks/:id', async (req, res) => {
+  try {
+    const bookmark = await Bookmarks.findByPk(req.params.id);
+    if (!bookmark) {
+      res.send(404, { message: 'Bookmark not found' });
+      return;
+    }
+    await bookmark.destroy(); // soft delete if paranoid:true
+    res.send(200, { message: 'Bookmark deleted' });
+  } catch (err) {
+    res.send(500, { error: err.message });
+  }
+});
+
+
+server.get('/bookmarks/check/:recipeId', async (req, res) => {
+  try {
+    const { recipeId } = req.params;
+
+    const bookmark = await Bookmarks.findOne({
+      where: { recipe_id: recipeId }
+    });
+
+    if (bookmark) {
+      res.send({ isBookmarked: true, bookmarkId: bookmark.id });
+    } else {
+      res.send({ isBookmarked: false });
+    }
+  } catch (err) {
+    res.send(500, { error: err.message });
+  }
+});

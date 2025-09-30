@@ -5,6 +5,7 @@ require('./models/Recipe');
 require('./models/Ingredient');
 require('./models/Instruction');
 require('./models/Ingredients');
+require('./models/Bookmarks');
 
 async function migrate() {
   try {
