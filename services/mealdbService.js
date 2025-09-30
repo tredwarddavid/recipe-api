@@ -173,4 +173,80 @@ async function fetchAndMapRecipeById(id) {
   };
 }
 
-module.exports = { fetchAndMapRecipe, fetchAndMapRecipeByCategory, fetchAndMapRecipeByArea, fetchAndMapRecipeById };
+/**
+ * Fetches recipes by ingredient from TheMealDB and maps to Recipe format.
+ * @param {string} ingredient - The ingredient to filter by.
+ * @returns {Promise<Array>} - Array of mapped recipe objects.
+ */
+async function fetchAndMapRecipeByIngredient(ingredient) {
+  const url = `https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(ingredient)}`;
+  const response = await axios.get(url);
+  const meals = response.data.meals;
+  if (!meals || meals.length === 0) return [];
+
+  // For each meal, fetch full details and map
+  const detailedRecipes = await Promise.all(
+    meals.map(async meal => {
+      const detailUrl = `https://www.themealdb.com/api/json/v1/1/lookup.php?i=${meal.idMeal}`;
+      const detailResponse = await axios.get(detailUrl);
+      const detailMeals = detailResponse.data.meals;
+      if (!detailMeals || detailMeals.length === 0) return null;
+      // Use the same mapping logic as fetchAndMapRecipe for a single meal
+      const fullMeal = detailMeals[0];
+      // Map ingredients as associated Ingredient model
+      const ingredients = [];
+      for (let i = 1; i <= 20; i++) {
+        const ingredientName = fullMeal[`strIngredient${i}`];
+        const measure = fullMeal[`strMeasure${i}`];
+        if (ingredientName && ingredientName.trim()) {
+          let quantity = '';
+          let unit = '';
+          if (measure && measure.trim()) {
+            const match = measure.trim().match(/^((?:\d+\s)?\d*\/?\d*)(.*)$/);
+            if (match) {
+              quantity = match[1].trim();
+              unit = match[2].trim();
+            } else {
+              quantity = measure.trim();
+              unit = '';
+            }
+          }
+          ingredients.push({
+            name: ingredientName.trim(),
+            quantity,
+            unit,
+          });
+        }
+      }
+
+      // Map instructions as associated Instruction model
+      const instructionsArr = [];
+      if (fullMeal.strInstructions) {
+        const steps = fullMeal.strInstructions.split(/\r?\n|\.\s/).filter(s => s.trim());
+        steps.forEach((desc, idx) => {
+          instructionsArr.push({
+            step: idx + 1,
+            description: desc.trim(),
+          });
+        });
+      }
+
+      return {
+        id: fullMeal.idMeal,
+        name: fullMeal.strMeal,
+        description: fullMeal.strMeal,
+        category: fullMeal.strCategory,
+        cuisine: fullMeal.strArea,
+        tags: fullMeal.strTags,
+        image_url: fullMeal.strMealThumb,
+        youtube_url: fullMeal.strYoutube,
+        ingredients,
+        instructions: instructionsArr,
+      };
+    })
+  );
+  // Filter out any nulls (in case some lookups failed)
+  return detailedRecipes.filter(r => r);
+}
+
+module.exports = { fetchAndMapRecipe, fetchAndMapRecipeByCategory, fetchAndMapRecipeByArea, fetchAndMapRecipeById, fetchAndMapRecipeByIngredient };
