@@ -1,6 +1,6 @@
 const restify = require('restify');
 const { Op } = require('sequelize');
-const { fetchAndMapRecipe, fetchAndMapRecipeByCategory, fetchAndMapRecipeByArea, fetchAndMapRecipeById } = require('./services/mealdbService');
+const { fetchAndMapRecipe, fetchAndMapRecipeByCategory, fetchAndMapRecipeByArea, fetchAndMapRecipeById, fetchAndMapRecipeByIngredient } = require('./services/mealdbService');
 // Import models (with associations already set)
 const { Recipe, Ingredient, Instruction, Bookmarks } = require('./models');
 
@@ -185,20 +185,52 @@ server.get('/recipes/search', async (req, res) => {
         [Op.or]: [
           { name: { [Op.like]: `%${criteria}%` } },
           { description: { [Op.like]: `%${criteria}%` } },
-          { tags: { [Op.like]: `%${criteria}%` } }
+          { tags: { [Op.like]: `%${criteria}%` } },
+          {
+            id: {
+              [Op.in]: [
+                // Subquery: get recipe IDs that have ingredients matching criteria
+                ...(
+                  await Ingredient.findAll({
+                    where: { name: { [Op.like]: `%${criteria}%` } },
+                    attributes: ['recipe_id'],
+                    raw: true
+                  })
+                ).map(ing => ing.recipe_id)
+              ]
+            }
+          }
         ]
       },
       include: [
         { model: Ingredient, as: 'ingredients' },
-        { model: Instruction, as: 'instructions', order: [['step', 'ASC']] }
-      ]
+        { 
+          model: Instruction, 
+          as: 'instructions',
+          separate: true,
+          order: [['step', 'ASC']]
+        }
+      ],
+      distinct: true
     });
 
     // If query param external=true, fetch from TheMealDB and append to results
     if (external === 'true') {
-      const externalRecipes = await fetchAndMapRecipe(criteria);
-      if (externalRecipes && externalRecipes.length > 0) {
-        recipes = recipes.concat(externalRecipes);
+      // Fetch by name/description/tags (original)
+      const externalRecipesByName = await fetchAndMapRecipe(criteria);
+      // Fetch by ingredient
+      const externalRecipesByIngredient = await fetchAndMapRecipeByIngredient(criteria);
+      // Combine and deduplicate by id
+      const allExternal = [...externalRecipesByName, ...externalRecipesByIngredient];
+      // Remove duplicates by id
+      const uniqueExternal = Object.values(
+        allExternal.reduce((acc, recipe) => {
+          acc[recipe.id] = recipe;
+          return acc;
+        }, {})
+      );
+      if (uniqueExternal.length > 0) {
+        recipes = recipes.concat(uniqueExternal);
       }
     }
     res.send(recipes);
