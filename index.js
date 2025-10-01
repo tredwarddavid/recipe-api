@@ -4,7 +4,9 @@ const { IncomingForm } = require('formidable');
 const { fetchAndMapRecipe, fetchAndMapRecipeByCategory, fetchAndMapRecipeByArea, fetchAndMapRecipeById, fetchAndMapRecipeByIngredient } = require('./services/mealdbService');
 // Import models (with associations already set)
 const { Recipe, Ingredient, Instruction, Bookmarks } = require('./models');
-
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const server = restify.createServer({ name: 'RecipeAPI' });
 
 server.use(restify.plugins.queryParser());
@@ -302,15 +304,10 @@ server.get('/recipes/searchByCuisine', async (req, res) => {
   }
 });
 
-server.listen(3000, "localhost", () => {
-  console.log("Running at http://localhost:3000");
-});
 
 // Image upload endpoint
 
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+
 
 const userHome = os.homedir();
 const uploadDir = path.join(userHome, 'dishcovery', 'recipe', 'images');
@@ -471,4 +468,9 @@ server.get('/bookmarks/check/:recipeId', async (req, res) => {
   } catch (err) {
     res.send(500, { error: err.message });
   }
+});
+
+
+server.listen(3000, "localhost", () => {
+  console.log("Running at http://localhost:3000");
 });
