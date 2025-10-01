@@ -1,5 +1,6 @@
 const restify = require('restify');
 const { Op } = require('sequelize');
+const { IncomingForm } = require('formidable');
 const { fetchAndMapRecipe, fetchAndMapRecipeByCategory, fetchAndMapRecipeByArea, fetchAndMapRecipeById, fetchAndMapRecipeByIngredient } = require('./services/mealdbService');
 // Import models (with associations already set)
 const { Recipe, Ingredient, Instruction, Bookmarks } = require('./models');
@@ -7,7 +8,7 @@ const { Recipe, Ingredient, Instruction, Bookmarks } = require('./models');
 const server = restify.createServer({ name: 'RecipeAPI' });
 
 server.use(restify.plugins.queryParser());
-server.use(restify.plugins.bodyParser()); // needed for POST/PUT
+// server.use(restify.plugins.bodyParser()); // needed for POST/PUT
 
 // Get all recipes
 server.get('/recipes', async (req, res) => {
@@ -306,31 +307,69 @@ server.listen(3000, "localhost", () => {
 });
 
 // Image upload endpoint
+
+const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const fs = require('fs');
 
-server.post('/upload', async (req, res) => {
-  try {
-    if (!req.files || !req.files.image) {
-      res.send(400, { message: 'No image file uploaded' });
-      return;
-    }
-    const imageFile = req.files.image;
-    const userHome = os.homedir();
-    const uploadDir = path.join(userHome, 'dishcovery', 'recipe', 'images');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    const fileName = Date.now() + '_' + imageFile.name.replace(/\s+/g, '_');
-    const filePath = path.join(uploadDir, fileName);
-    // Save file
-    fs.writeFileSync(filePath, imageFile.data);
-    res.send({ message: 'Image uploaded successfully', path: filePath });
-  } catch (err) {
-    res.send(500, { error: err.message });
+server.post('/upload', (req, res, next) => {
+  console.log("upload initiated");
+
+  const userHome = os.homedir();
+  const uploadDir = path.join(userHome, 'dishcovery', 'recipe', 'images');
+
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
   }
+
+  const form = new IncomingForm({
+    uploadDir,
+    keepExtensions: true,
+    multiples: false
+  });
+
+  console.log("form starting to parse");
+  console.log(form);
+  form.parse(req, (err, fields, files) => {
+    console.log("form parsing");
+    console.log("fields:", fields);
+    console.log("files:", files);
+
+    if (err) {
+      console.error('Form parse error:', err);
+      res.send(500, { error: err.message });
+      return next();
+    }
+
+    // Formidable stores files in an array
+    const fileArray = files.image;
+    if (!fileArray || fileArray.length === 0) {
+      res.send(400, { message: 'No image file uploaded' });
+      return next();
+    }
+
+    const file = fileArray[0]; // take the first uploaded file
+    const fileName =
+      Date.now() + '_' + path.basename(file.originalFilename).replace(/\s+/g, '_');
+    const newPath = path.join(uploadDir, fileName);
+
+    fs.rename(file.filepath, newPath, (err) => {
+      if (err) {
+        res.send(500, { error: err.message });
+        return next();
+      }
+
+      res.send({
+        message: 'Image uploaded successfully',
+        url: '/images/' + fileName,
+      });
+      return next();
+    });
+  });
+
 });
+
+
 
 server.get('/bookmarks', async (req, res) => {
   try {
