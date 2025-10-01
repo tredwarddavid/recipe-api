@@ -8,7 +8,7 @@ const { Recipe, Ingredient, Instruction, Bookmarks } = require('./models');
 const server = restify.createServer({ name: 'RecipeAPI' });
 
 server.use(restify.plugins.queryParser());
-// server.use(restify.plugins.bodyParser()); // needed for POST/PUT
+const bodyParser = restify.plugins.bodyParser();
 
 // Get all recipes
 server.get('/recipes', async (req, res) => {
@@ -54,7 +54,7 @@ server.get('/recipes/:id', async (req, res) => {
 
 
 // Create a new recipe
-server.post('/recipes', async (req, res) => {
+server.post('/recipes',bodyParser, async (req, res) => {
   try {
     const {
       name,
@@ -312,11 +312,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-server.post('/upload', (req, res, next) => {
-  console.log("upload initiated");
+const userHome = os.homedir();
+const uploadDir = path.join(userHome, 'dishcovery', 'recipe', 'images');
 
-  const userHome = os.homedir();
-  const uploadDir = path.join(userHome, 'dishcovery', 'recipe', 'images');
+server.post('/upload', (req, res, next) => {
 
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
@@ -328,8 +327,6 @@ server.post('/upload', (req, res, next) => {
     multiples: false
   });
 
-  console.log("form starting to parse");
-  console.log(form);
   form.parse(req, (err, fields, files) => {
     console.log("form parsing");
     console.log("fields:", fields);
@@ -361,7 +358,7 @@ server.post('/upload', (req, res, next) => {
 
       res.send({
         message: 'Image uploaded successfully',
-        url: '/images/' + fileName,
+        url: '/images/' + fileName 
       });
       return next();
     });
@@ -369,6 +366,34 @@ server.post('/upload', (req, res, next) => {
 
 });
 
+// Serve uploaded images
+server.get('/images/:filename', (req, res, next) => {
+  const filePath = path.join(uploadDir, req.params.filename);
+
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      res.send(404, { message: 'File not found' });
+      return next();
+    }
+
+    // Set content type from file extension
+    const ext = path.extname(filePath).toLowerCase();
+    let contentType = 'application/octet-stream';
+    if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
+    if (ext === '.png') contentType = 'image/png';
+    if (ext === '.gif') contentType = 'image/gif';
+
+    res.writeHead(200, { 'Content-Type': contentType });
+    const stream = fs.createReadStream(filePath);
+    stream.pipe(res);
+
+    stream.on('end', () => next());
+    stream.on('error', (err) => {
+      res.send(500, { error: err.message });
+      next();
+    });
+  });
+});
 
 
 server.get('/bookmarks', async (req, res) => {
@@ -392,7 +417,7 @@ server.get('/bookmarks', async (req, res) => {
 });
 
 // Add a bookmark
-server.post('/bookmarks', async (req, res) => {
+server.post('/bookmarks',bodyParser, async (req, res) => {
   try {
     const { recipe_id } = req.body;
     if (!recipe_id) {
